@@ -1,0 +1,8 @@
+*/bin/*
+*/.settings/*
+*/.classpath
+.classpath
+*/.project
+.settings/
+.gradle/
+.project

@@ -1,0 +1,97 @@
+def loadProperties(String extName, File propertiesFile) {
+  logger.info "Loading properties '${propertiesFile.canonicalPath}'"
+  
+  def propertiesLocation = propertiesFile.canonicalFile.parentFile
+  def propertiesBaseName = propertiesFile.name.split('\\.')[0]
+  def propertiesExtension = propertiesFile.name.contains('.') ? propertiesFile.name.split('\\.')[1] : 'properties'
+
+  def tempProperties = !ext.has(extName) ? new Properties() : ext[extName]
+  def defaultProperties = new File(propertiesLocation, propertiesBaseName + ".default." + propertiesExtension)
+  if (defaultProperties.exists()) {
+    tempProperties.load(new FileInputStream(defaultProperties))
+  }
+  def systemProperties = new File(propertiesLocation, propertiesBaseName + ".system." + propertiesExtension)
+  if (systemProperties.exists()) {
+    tempProperties.load(new FileInputStream(systemProperties))
+  }
+  def userProperties = new File(propertiesLocation, propertiesBaseName + ".user." + propertiesExtension)
+  if (userProperties.exists()) {
+    tempProperties.load(new FileInputStream(userProperties))
+  }
+  if (propertiesFile.exists()) {
+    tempProperties.load(new FileInputStream(propertiesFile))
+  }
+  
+  tempProperties.every { key, value ->
+    if (System.properties.containsKey(key)) {
+      tempProperties[key] = System.properties[key]
+    }
+  }
+
+  def engine = new groovy.text.SimpleTemplateEngine()
+  def bindings = createPropertyBindings();
+
+  tempProperties.every { key, value ->
+    def template = engine.createTemplate(value).make(bindings)
+    tempProperties[key] = template.toString()
+  }
+
+  ext[extName] = tempProperties
+}
+
+def createPropertyBindings() {
+  def bindings = [:]
+  bindings.withDefault {
+    key -> new FakeBinding(key)
+  }
+  bindings.putAll(project.properties)
+
+  // create nested maps for system properties
+  System.properties.sort().each {
+    def map = bindings
+    def split = it.key.split("\\.")
+    for (int i = 0; i < split.length; i++) {
+      def part = split[i];
+      // There is already a property value with the same parent
+      if (!(map instanceof Map)) {
+        logger.info "Skipping property '${it.key}'. This property will not be usable for replacement in any property file."
+        break;
+      }
+
+      if (!map.containsKey(part)) {
+        map[part] = [:]
+      }
+      if (i == split.length - 1) {
+        map[part] = it.value
+      } else {
+        map = map[part]
+      }
+    }
+    map = it.value
+  }
+
+  return bindings
+}
+
+// Used as default to replace unmatched expansion with their original value
+class FakeBinding   {
+  private def value
+
+  FakeBinding(x) {
+    value = x;
+  }
+
+  def propertyMissing(x) {
+    value += '.' + x;
+    return this;
+  }
+
+  String toString() {
+    '${' + value + '}'
+  }
+}
+
+// Export methods by turning them into closures
+ext {
+  loadProperties = this.&loadProperties
+}

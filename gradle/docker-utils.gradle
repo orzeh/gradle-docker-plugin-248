@@ -1,0 +1,32 @@
+buildscript {
+  repositories { mavenCentral() }
+
+  dependencies {
+    classpath group: 'com.bmuschko', name: 'gradle-docker-plugin', version: '2.6.8'
+  }
+}
+
+import com.bmuschko.gradle.docker.tasks.image.DockerTagImage
+import com.bmuschko.gradle.docker.utils.DockerThreadContextClassLoader
+import com.bmuschko.gradle.docker.utils.ThreadContextClassLoader
+
+
+def tagDockerImage(String aImageId, String aName, String[] aTags) {
+
+  def i = 0
+  aTags.each { tagIt ->
+    def tagTask = tasks.create(name: "tagDockerImage${i}", type: DockerTagImage) {
+      targetImageId { aImageId }
+      repository = aName.trim()
+      tag = tagIt.trim()
+    }
+
+    tagTask.doFirst { logger.info "Tagging image '${imageId}' with tag '${repository}:${tag}'" }
+
+    tagTask.execute()
+    i++
+  }
+}
+
+// Export methods by turning them into closures
+ext { tagDockerImage = this.&tagDockerImage }
