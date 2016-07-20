@@ -1,8 +1,12 @@
 buildscript {
-  repositories { mavenCentral() }
+  repositories { 
+    mavenCentral()
+    jcenter() 
+  }
 
   dependencies {
     classpath group: 'com.bmuschko', name: 'gradle-docker-plugin', version: '2.6.8'
+    classpath 'com.github.jengelman.gradle.plugins:gradle-processes:0.3.0'
   }
 }
 
